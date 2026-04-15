@@ -2,13 +2,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const firebaseConfig = { 
-    apiKey: "AIzaSyDCtU9Lc0JcAGi5FTiM8fZe_afRyCS6SGw", 
-    authDomain: "soulwinning-tracker-d253c.firebaseapp.com", 
-    projectId: "soulwinning-tracker-d253c", 
-    storageBucket: "soulwinning-tracker-d253c.firebasestorage.app", 
-    messagingSenderId: "589304661785", 
-    appId: "1:589304661785:web:41cb41d743adadbdb7e788" 
+const firebaseConfig = {
+  apiKey: "AIzaSyA5a9sww6-8r4nt9JKiQAk4oiaHCnbeYBA",
+  authDomain: "soulwinning-tracker-e45b9.firebaseapp.com",
+  projectId: "soulwinning-tracker-e45b9",
+  storageBucket: "soulwinning-tracker-e45b9.firebasestorage.app",
+  messagingSenderId: "402520733641",
+  appId: "1:402520733641:web:af96ab14270f7d785b9a18"
 };
 
 const app = initializeApp(firebaseConfig);
