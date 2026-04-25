@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <script>tailwind.config = { darkMode: 'class' }</script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>        
         button, .preset-btn, .type-btn, [role="button"] {
             transition: all 0.3s ease-in-out !important;
@@ -88,6 +89,30 @@
             scrollbar-width: thin;
             scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
         }
+
+        /* SURGICAL FIX: Custom Calendar Icon for Log Modal (datetime-local) */
+
+        /* 1. Hide the default browser "blob" icon */
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            background: transparent;
+            cursor: pointer;
+            /* This makes the clickable area cover the right side of the input */
+            padding-left: 50px; 
+        }
+        
+        /* 2. Inject your style's icon as a background image */
+        input[type="datetime-local"] {
+            position: relative;
+            /* Using your Indigo-500 color for the icon */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%236366f1' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1.25rem center;
+        }
+        
+        /* 3. Light Mode Support (Matches your Slate-500 inputs) */
+        #main-html:not(.dark) input[type="datetime-local"] {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z'/%3E%3C/svg%3E");
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-[#0f172a] dark:text-slate-100 transition-colors duration-300">
@@ -104,7 +129,7 @@
                 <svg id="sun-icon" class="w-5 h-5 hidden text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M3 12h2.25m.386-6.364l1.591 1.591M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" /></svg>
                 <svg id="moon-icon" class="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" /></svg>
             </button>
-            <button onclick="handleLogout()" class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:text-red-500 transition-all ml-2">
+            <button handleLogout()" class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:text-red-500 transition-all ml-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
             </button>
         </div>
@@ -120,14 +145,33 @@
                 </button>
             </div>
             <div id="church-list-tags" class="flex flex-wrap justify-center gap-2 mt-2"></div>
-        </header>
-
+                        
+        </header>        
+        
         <div class="mb-12">
             <div class="flex items-center gap-4 mb-6 px-4">
                 <div class="h-[1px] flex-1 bg-white/5"></div>
-                <label class="text-[11px] font-black text-slate-200 uppercase tracking-[0.3em]">Personal</label>
+                <label class="text-[12px] font-black text-slate-200 uppercase tracking-[0.3em]">Personal</label>
                 <div class="h-[1px] flex-1 bg-white/5"></div>
             </div>
+
+            <div class="w-full bg-white dark:bg-slate-900/40 backdrop-blur-md rounded-[1.25rem] p-5 mt-6 mb-6 border border-slate-200 dark:border-white/10 shadow-sm dark:shadow-2xl transition-all duration-300">
+    
+                <div class="flex flex-col items-center justify-center mb-8 gap-3">
+                    <p class="text-[10px] font-black text-slate-400 dark:text-indigo-400 uppercase tracking-[0.3em]">
+                        My Weekly Progress
+                    </p>
+                    
+                    <span id="weekly-total-badge" class="text-[10px] font-black px-3 py-1 rounded-full bg-slate-100 dark:bg-indigo-500/20 text-slate-600 dark:text-indigo-300 border border-slate-200 dark:border-indigo-500/30 uppercase tracking-widest">
+                        TOTAL: 0
+                    </span>
+                </div>
+            
+                <div class="h-40 w-full px-2">
+                    <canvas id="weeklyChart"></canvas>
+                </div>
+            </div>
+            
             <div class="space-y-3">
                 <button onclick="window.location.href='prospects.html'" class="dash-row group">
                     <div class="flex items-center gap-4 text-left">
@@ -181,7 +225,7 @@
         <div class="mb-12">
             <div class="flex items-center gap-4 mb-6 px-4">
                 <div class="h-[1px] flex-1 bg-white/5"></div>
-                <label class="text-[11px] font-black text-slate-200 uppercase tracking-[0.3em]">Tools</label>
+                <label class="text-[12px] font-black text-slate-200 uppercase tracking-[0.3em]">Tools</label>
                 <div class="h-[1px] flex-1 bg-white/5"></div>
             </div>
 
@@ -223,7 +267,7 @@
         <div>
             <div class="flex items-center gap-4 mb-6 px-4">
                 <div class="h-[1px] flex-1 bg-white/5"></div>
-                <label class="text-[11px] font-black text-slate-200 uppercase tracking-[0.3em]">Analytics Report</label>
+                <label class="text-[12px] font-black text-slate-200 uppercase tracking-[0.3em]">Analytics Report</label>
                 <div class="h-[1px] flex-1 bg-white/5"></div>
             </div>
             
@@ -255,16 +299,16 @@
                 <div>
                     <label class="block text-[10px] font-black text-slate-500 uppercase mb-4 tracking-widest text-center">Custom Selection</label>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2 px-1 text-center">
-                        <div class="flex flex-col gap-2 relative"> <label class="text-[8px] font-bold text-slate-500 uppercase">Specific Day</label>
+                        <div class="flex flex-col gap-2 relative"> <label class="text-[9px] font-bold text-slate-500 uppercase">Specific Day</label>
                             <input type="date" id="customDate" oninput="handleCustomInput('date')" 
                                 class="w-full bg-slate-100 dark:bg-[#0f172a] border border-slate-200 dark:border-white/5 p-3 rounded-xl text-[12px] font-bold text-slate-900 dark:text-white outline-none transition-all duration-300 text-center h-[52px]">
                         </div>
-                        <div class="flex flex-col gap-2 relative"> <label class="text-[8px] font-bold text-slate-500 uppercase">Specific Month</label>
+                        <div class="flex flex-col gap-2 relative"> <label class="text-[9px] font-bold text-slate-500 uppercase">Specific Month</label>
                             <input type="month" id="customMonth" oninput="handleCustomInput('month')" 
                                 class="w-full bg-slate-100 dark:bg-[#0f172a] border border-slate-200 dark:border-white/5 p-3 rounded-xl text-[12px] font-bold text-slate-900 dark:text-white outline-none transition-all duration-300 text-center h-[52px]">
                         </div>
                         <div class="flex flex-col gap-2">
-                            <label class="text-[8px] font-bold text-slate-500 uppercase">Specific Year</label>
+                            <label class="text-[9px] font-bold text-slate-500 uppercase">Specific Year</label>
                             <select id="customYear" onchange="handleCustomInput('year')" 
                                 class="w-full bg-slate-100 dark:bg-[#0f172a] border border-slate-200 dark:border-white/5 p-3 rounded-xl text-[10px] font-bold text-slate-900 dark:text-white outline-none appearance-none text-center transition-all duration-300 h-[52px]">
                             </select>
@@ -403,12 +447,124 @@
     <script type="module">
         import { auth, db } from './firebase-config.js';
         import { onAuthStateChanged, signOut, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { doc, getDoc, setDoc, updateDoc, arrayUnion, addDoc, serverTimestamp, getAggregateFromServer, sum, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { doc, getDoc, setDoc, updateDoc, arrayUnion, addDoc, serverTimestamp, getAggregateFromServer, sum, collection, query, where, getDocs, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         let userProfile = null; 
         let churchNames = {};
         let currentPreset = 'month';
         let currentType = 'all';
+
+        // --- HELPER: GET MONDAY DATE OF CURRENT WEEK ---
+        const getMondayDate = (d = new Date()) => {
+            const date = new Date(d);
+            const day = date.getDay();
+            const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+            const monday = new Date(date.setDate(diff));
+            return monday.toISOString().split('T')[0];
+        };
+
+        window.renderWeeklyChart = async (uid, churchId) => {
+            const canvas = document.getElementById('weeklyChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const mondayDate = getMondayDate();
+        
+            try {
+                const docRef = doc(db, `churches/${churchId}/users/${uid}/weekly_stats`, "current_week");
+                const snap = await getDoc(docRef);
+                let data = snap.exists() ? snap.data() : null;
+        
+                // --- SURGICAL TRIGGER: SELF-HEALING CHECK ---
+                // If no data exists OR data is from a previous week...
+                // We check if we need to "Heal" by looking for existing records from THIS week.
+                if (!data || data.startDate !== mondayDate) {
+                    console.log("Self-healing: Aggregating existing records for this week...");
+                    
+                    const q = query(
+                        collection(db, "salvations"),
+                        where("userId", "==", uid),
+                        where("eventDate", ">=", mondayDate)
+                    );
+                    const salvationSnap = await getDocs(q);
+                    
+                    const healedTotals = { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 };
+                    salvationSnap.forEach(d => {
+                        const sData = d.data();
+                        const dayKey = new Date(sData.eventDate).toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
+                        if (healedTotals.hasOwnProperty(dayKey)) {
+                            healedTotals[dayKey] += Number(sData.count || 0);
+                        }
+                    });
+        
+                    // Save the healed data so we don't have to do this again
+                    data = {
+                        ...healedTotals,
+                        startDate: mondayDate,
+                        timestamp: serverTimestamp()
+                    };
+                    await setDoc(docRef, data, { merge: true });
+                }
+        
+                const weeklyData = [
+                    data.mon || 0, data.tue || 0, data.wed || 0,
+                    data.thu || 0, data.fri || 0, data.sat || 0, data.sun || 0
+                ];
+        
+                // --- REMAINDER OF RENDERING LOGIC (STAYS IDENTICAL) ---
+                const totalSalvations = weeklyData.reduce((a, b) => a + b, 0);
+                const totalBadge = document.getElementById('weekly-total-badge');
+                if (totalBadge) totalBadge.innerText = `TOTAL: ${totalSalvations}`;
+        
+                const isDarkMode = document.getElementById('main-html').classList.contains('dark');
+                const tickColor = isDarkMode ? '#64748b' : '#1e293b'; 
+        
+                const gradient = ctx.createLinearGradient(0, 0, 0, 150);
+                gradient.addColorStop(0, 'rgba(16, 185, 129, 1)');   
+                gradient.addColorStop(1, 'rgba(16, 185, 129, 0.1)'); 
+        
+                if (window.myWeeklyChart) window.myWeeklyChart.destroy();
+                window.myWeeklyChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
+                        datasets: [{
+                            data: weeklyData,
+                            backgroundColor: gradient,
+                            hoverBackgroundColor: '#34d399',
+                            borderRadius: 8,
+                            borderSkipped: false,
+                            barThickness: 16,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 1200, easing: 'easeOutQuart' },
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: {
+                                enabled: true,
+                                backgroundColor: '#064e3b',
+                                titleFont: { size: 10, weight: 'bold' },
+                                bodyFont: { size: 13, weight: '900' },
+                                padding: 12,
+                                cornerRadius: 12,
+                                displayColors: false,
+                                callbacks: { label: (context) => ` ${context.raw} Salvations` }
+                            }
+                        },
+                        scales: {
+                            y: { display: false, beginAtZero: true, suggestedMax: Math.max(...weeklyData) + 2 },
+                            x: {
+                                grid: { display: false },
+                                border: { display: false },
+                                ticks: { color: tickColor, font: { size: 9, weight: '900' }, padding: 10 }
+                            }
+                        }
+                    }
+                });
+            } catch (e) { console.error("Chart Render/Heal Failure:", e); }
+        };
 
         const initYearSelector = () => {
             const yearSelect = document.getElementById('customYear');
@@ -522,7 +678,6 @@
                     profile = snap.data();
                 }
 
-                // --- PC SELF-HEALING SAFETY NET ---
                 if (!profile.churchNames || Object.keys(profile.churchNames).length === 0) {
                     const namesMap = {};
                     for (const code of (profile.churchId || [])) {
@@ -545,6 +700,11 @@
                 await renderChurchUI();
                 setActivePreset('month');
                 setActiveType('all');
+                
+                // SURGICAL INVOCATION: Render the weekly chart on load
+                if (userProfile.churchId && userProfile.churchId.length > 0) {
+                    renderWeeklyChart(user.uid, userProfile.churchId[0]);
+                }
         
             } catch (e) { 
                 console.error("Auth Guard Error:", e);
@@ -585,7 +745,6 @@
             tagContainer.innerHTML = tagsHtml;
         }
 
-        // --- MERGED REPORTING LOGIC WITH AGGREGATION ---
         window.loadStats = async () => {
             if (!userProfile?.churchId?.length) return showToast("No linked churches."); 
             const selCh = document.getElementById('churchFilter').value;
@@ -644,13 +803,11 @@
                 const totals = {}; const legacyTotals = {}; const participants = {}; const globalUnique = new Set();
 
                 for (const t of types) {
-                    // 1. AGGREGATED LIVE DATA
                     let qConstraints = [where("churchId", "in", churchIds), where("type", "==", t)];
                     if (!isAllTime) { qConstraints.push(where("eventDate", ">=", startLimit), where("eventDate", "<=", endLimit)); }
                     const liveSnap = await getAggregateFromServer(query(collection(db, "salvations"), ...qConstraints), { total: sum('count') });
                     totals[t] = liveSnap.data().total || 0;
 
-                    // 2. AGGREGATED LEGACY DATA
                     let legConstraints = [where("churchId", "in", churchIds), where("type", "==", t)];
                     if (!isAllTime) {
                         if (cYear) { legConstraints.push(where("year", "==", parseInt(cYear))); }
@@ -784,11 +941,10 @@
         window.handleDataSubmit = async () => {
             const type = document.getElementById('soulType').value;
             
-            // SURGICAL FIX: Improved logic and specific error messaging
             if (!type) return showToast("Please select a Soulwinning Type.");
             if (!userProfile?.churchId?.length) {
-                console.error("Critical Error: Church ID missing from user profile.");
-                return showToast("Error: Church profile not found. Please refresh.");
+                console.error("Critical Error: Church ID missing.");
+                return showToast("Error: Church profile not found.");
             }
         
             const btn = document.getElementById('submit-btn'); 
@@ -800,33 +956,101 @@
                 const dt = document.getElementById('soulDateTime').value;
                 const dId = dt.split('T')[0]; 
                 const mId = dId.substring(0, 7);
-        
-                // Standardized Zero-Handling
+                const dayKey = new Date(dt).toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
+                const mondayDate = getMondayDate();
+
                 const soulCount = Number(document.getElementById('soulCount').value) || 0;
         
+                // 1. Log the individual record
                 await addDoc(collection(db, "salvations"), { 
-                    count: soulCount, 
-                    type, 
-                    note: document.getElementById('soulNote').value, 
-                    eventDate: dt, 
-                    userId: uid, 
-                    churchId, 
-                    timestamp: serverTimestamp() 
+                    count: soulCount, type, note: document.getElementById('soulNote').value, 
+                    eventDate: dt, userId: uid, churchId, timestamp: serverTimestamp() 
                 });
         
+                // 2. Update Daily/Monthly Attendance Stats
                 const sU = {}; 
                 sU[`${type}_members`] = arrayUnion(uid);
-        
                 await setDoc(doc(db, `churches/${churchId}/daily_stats`, dId), sU, { merge: true });
                 await setDoc(doc(db, `churches/${churchId}/monthly_stats`, mId), sU, { merge: true });
+
+                // 3. SURGICAL BUCKET UPDATE: Handle Personal Weekly Aggregate
+                const statsRef = doc(db, `churches/${churchId}/users/${uid}/weekly_stats`, "current_week");
+                const statsSnap = await getDoc(statsRef);
+                const statsData = statsSnap.exists() ? statsSnap.data() : {};
+
+                if (statsData.startDate !== mondayDate) {
+                    // NEW WEEK: Reset all days to zero and overwrite with current entry
+                    await setDoc(statsRef, {
+                        startDate: mondayDate,
+                        mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0,
+                        [dayKey]: soulCount,
+                        timestamp: serverTimestamp()
+                    });
+                } else {
+                    // SAME WEEK: Atomically increment the day's count
+                    await setDoc(statsRef, {
+                        [dayKey]: increment(soulCount),
+                        timestamp: serverTimestamp()
+                    }, { merge: true });
+                }
         
                 closeModal(); 
                 showToast("Saved!"); 
+                renderWeeklyChart(uid, churchId); // Immediate visual feedback
             } catch(e) { 
                 console.error("Submission Error:", e);
                 showToast("Error saving record."); 
             } finally { 
                 btn.disabled = false; 
+            }
+        };
+
+        window.migrateWeeklyStats = async () => {
+            // SURGICAL FIX: Get the actual current user from Firebase Auth directly
+            const activeUser = auth.currentUser;
+            
+            if (!activeUser || !userProfile?.churchId?.[0]) {
+                console.error("Auth State:", activeUser, "Profile:", userProfile);
+                return showToast("❌ Auth required. Please log in.");
+            }
+            
+            const churchId = userProfile.churchId[0];
+            const uid = activeUser.uid;
+            const mondayDate = getMondayDate(); 
+            const statsRef = doc(db, `churches/${churchId}/users/${uid}/weekly_stats`, "current_week");
+        
+            showToast("Starting Migration...");
+        
+            try {
+                const q = query(
+                    collection(db, "salvations"),
+                    where("userId", "==", uid),
+                    where("eventDate", ">=", mondayDate)
+                );
+        
+                const snap = await getDocs(q);
+                const weeklyTotals = { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 };
+        
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    const dayKey = new Date(data.eventDate).toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
+                    if (weeklyTotals.hasOwnProperty(dayKey)) {
+                        weeklyTotals[dayKey] += Number(data.count || 0);
+                    }
+                });
+        
+                await setDoc(statsRef, {
+                    ...weeklyTotals,
+                    startDate: mondayDate,
+                    timestamp: serverTimestamp()
+                }, { merge: true });
+        
+                showToast("✅ Migration Complete!");
+                // Refresh the chart immediately
+                renderWeeklyChart(uid, churchId);
+            } catch (e) {
+                console.error("Migration Error:", e);
+                showToast("❌ Migration Failed. Check rules.");
             }
         };
     </script>
