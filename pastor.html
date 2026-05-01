@@ -129,7 +129,7 @@
                 <svg id="sun-icon" class="w-5 h-5 hidden text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M3 12h2.25m.386-6.364l1.591 1.591M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" /></svg>
                 <svg id="moon-icon" class="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" /></svg>
             </button>
-            <button handleLogout()" class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:text-red-500 transition-all ml-2">
+            <button onclick="handleLogout()" class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:text-red-500 transition-all ml-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
             </button>
         </div>
@@ -454,67 +454,90 @@
         let currentPreset = 'month';
         let currentType = 'all';
 
-        // --- HELPER: GET MONDAY DATE OF CURRENT WEEK ---
-        const getMondayDate = (d = new Date()) => {
+         const getMondayDate = (d = new Date()) => {
             const date = new Date(d);
-            const day = date.getDay();
+            const day = date.getDay(); // 0 is Sun, 1 is Mon...
+            
+            // The logic: If today is Sunday (0), we go back 6 days. 
+            // If today is Mon-Sat (1-6), we go back (day - 1) days.
             const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+            
             const monday = new Date(date.setDate(diff));
-            return monday.toISOString().split('T')[0];
+            
+            // Format to YYYY-MM-DD using local time to avoid timezone shifts
+            return monday.getFullYear() + '-' + 
+                   String(monday.getMonth() + 1).padStart(2, '0') + '-' + 
+                   String(monday.getDate()).padStart(2, '0');
         };
 
+        // --- RENDER WEEKLY CHART (1 READ + CONDITIONAL HEAL) ---
         window.renderWeeklyChart = async (uid, churchId) => {
             const canvas = document.getElementById('weeklyChart');
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
-            const mondayDate = getMondayDate();
+            
+            // Standardize the current Monday string (YYYY-MM-DD)
+            const currentMonday = getMondayDate(); 
         
             try {
                 const docRef = doc(db, `churches/${churchId}/users/${uid}/weekly_stats`, "current_week");
                 const snap = await getDoc(docRef);
                 let data = snap.exists() ? snap.data() : null;
         
-                // --- SURGICAL TRIGGER: SELF-HEALING CHECK ---
-                // If no data exists OR data is from a previous week...
-                // We check if we need to "Heal" by looking for existing records from THIS week.
-                if (!data || data.startDate !== mondayDate) {
-                    console.log("Self-healing: Aggregating existing records for this week...");
-                    
-                    const q = query(
-                        collection(db, "salvations"),
-                        where("userId", "==", uid),
-                        where("eventDate", ">=", mondayDate)
-                    );
-                    const salvationSnap = await getDocs(q);
-                    
-                    const healedTotals = { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 };
-                    salvationSnap.forEach(d => {
-                        const sData = d.data();
-                        const dayKey = new Date(sData.eventDate).toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
-                        if (healedTotals.hasOwnProperty(dayKey)) {
-                            healedTotals[dayKey] += Number(sData.count || 0);
-                        }
-                    });
-        
-                    // Save the healed data so we don't have to do this again
-                    data = {
-                        ...healedTotals,
-                        startDate: mondayDate,
-                        timestamp: serverTimestamp()
-                    };
-                    await setDoc(docRef, data, { merge: true });
+                // --- SURGICAL TRIGGER: HARD RESET ---
+                // If data is older than current Monday, treat it as null to trigger reset/heal
+                if (data && data.startDate < currentMonday) {
+                    data = null; 
                 }
         
+                if (!data || data.startDate !== currentMonday) {
+                    // 1. INITIALIZE EMPTY WEEK
+                    data = { 
+                        mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0, 
+                        startDate: currentMonday 
+                    };
+        
+                    try {
+                        // 2. HEAL: Fetch existing records for this week
+                        const q = query(
+                            collection(db, "salvations"),
+                            where("userId", "==", uid),
+                            where("eventDate", ">=", currentMonday)
+                        );
+                        const salvationSnap = await getDocs(q);
+                        
+                        if (!salvationSnap.empty) {
+                            salvationSnap.forEach(d => {
+                                const sData = d.data();
+                                const dObj = new Date(sData.eventDate);
+                                const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+                                const dayKey = days[dObj.getDay()];
+                                
+                                if (data.hasOwnProperty(dayKey)) {
+                                    data[dayKey] += Number(sData.count || 0);
+                                }
+                            });
+                        }
+        
+                        // 3. PERSIST RESET
+                        await setDoc(docRef, { ...data, timestamp: serverTimestamp() });
+        
+                    } catch (healError) {
+                        console.error("Healing process failed:", healError);
+                    }
+                }
+        
+                // --- PREPARE CHART DATA ---
                 const weeklyData = [
                     data.mon || 0, data.tue || 0, data.wed || 0,
                     data.thu || 0, data.fri || 0, data.sat || 0, data.sun || 0
                 ];
         
-                // --- REMAINDER OF RENDERING LOGIC (STAYS IDENTICAL) ---
                 const totalSalvations = weeklyData.reduce((a, b) => a + b, 0);
                 const totalBadge = document.getElementById('weekly-total-badge');
                 if (totalBadge) totalBadge.innerText = `TOTAL: ${totalSalvations}`;
         
+                // --- THEME & GRADIENTS ---
                 const isDarkMode = document.getElementById('main-html').classList.contains('dark');
                 const tickColor = isDarkMode ? '#64748b' : '#1e293b'; 
         
@@ -563,7 +586,9 @@
                         }
                     }
                 });
-            } catch (e) { console.error("Chart Render/Heal Failure:", e); }
+            } catch (e) { 
+                console.error("Critical Chart Failure:", e); 
+            }
         };
 
         const initYearSelector = () => {
